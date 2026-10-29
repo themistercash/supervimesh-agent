@@ -1,0 +1,16 @@
+{
+  "type": "node_status",
+  "message": {
+    "schema_version": 2,
+    "msg_id": "1522c866-6469-4bc3-8e23-b1aa3530eafc",
+    "ts": "2026-10-28T10:15:00Z",
+    "public_key": "a1b2c3d4e5f6",
+    "battery_mv": 3920,
+    "uptime_s": 1209600,
+    "noise_floor_dbm": -112,
+    "airtime_tx_s": 340,
+    "packets_rx": 15230,
+    "packets_tx": 4410,
+    "extra": {}
+  }
+}

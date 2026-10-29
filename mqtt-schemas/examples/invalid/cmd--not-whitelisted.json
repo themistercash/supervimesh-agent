@@ -1,0 +1,12 @@
+{
+  "type": "cmd",
+  "message": {
+    "schema_version": 1,
+    "request_id": "r-981",
+    "cmd": "reboot",
+    "args": {
+      "test_id": "t-42"
+    },
+    "expires_at": "2026-10-28T10:20:00Z"
+  }
+}

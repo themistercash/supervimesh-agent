@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://supervimesh.fr/schemas/node_advert.json",
+  "title": "node_advert",
+  "description": "Annonce d'un nœud",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "msg_id": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-fA-F-]{36}$"
+    },
+    "ts": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$"
+    },
+    "public_key": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{2,64}$"
+    },
+    "name": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 64
+    },
+    "role": {
+      "enum": [
+        "repeater",
+        "room_server",
+        "companion",
+        "sensor",
+        "unknown"
+      ]
+    },
+    "lat": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": -90,
+      "maximum": 90
+    },
+    "lng": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": -180,
+      "maximum": 180
+    },
+    "rssi": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "snr": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "hops": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    }
+  },
+  "required": [
+    "schema_version",
+    "msg_id",
+    "ts",
+    "public_key",
+    "role"
+  ],
+  "additionalProperties": false
+}

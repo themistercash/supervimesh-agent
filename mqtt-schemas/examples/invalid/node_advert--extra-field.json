@@ -1,0 +1,17 @@
+{
+  "type": "node_advert",
+  "message": {
+    "schema_version": 1,
+    "msg_id": "1522c866-6469-4bc3-8e23-b1aa3530eafc",
+    "ts": "2026-10-28T10:15:00Z",
+    "public_key": "a1b2c3d4e5f6",
+    "name": "Relais Église",
+    "role": "repeater",
+    "lat": 45.123,
+    "lng": 5.456,
+    "rssi": -98,
+    "snr": 7.5,
+    "hops": 1,
+    "password": "x"
+  }
+}

@@ -1,0 +1,22 @@
+[Unit]
+Description=Agent passerelle SuperviMesh
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=supervimesh
+Group=dialout
+ExecStart=/opt/supervimesh/venv/bin/supervimesh-agent -c /etc/supervimesh/config.yaml --log-file /var/log/supervimesh/agent.log
+Restart=always
+RestartSec=10
+# Durcissement : l'agent n'a besoin que du port série, du réseau sortant et de son dossier de données.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/supervimesh /var/log/supervimesh
+DeviceAllow=char-ttyUSB rw
+DeviceAllow=char-ttyACM rw
+
+[Install]
+WantedBy=multi-user.target

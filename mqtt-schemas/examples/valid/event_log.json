@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "msg_id": "1522c866-6469-4bc3-8e23-b1aa3530eafc",
+  "ts": "2026-10-28T10:15:00Z",
+  "channel": "Organisation",
+  "from_name": "Bénévole Ravito 3",
+  "from_key": "f6a7",
+  "kind": "sos",
+  "content": "Coureur blessé km 18",
+  "lat": 45.2,
+  "lng": 5.5
+}

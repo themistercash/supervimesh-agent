@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://supervimesh.fr/schemas/test_result.json",
+  "title": "test_result",
+  "description": "Résultat d'un test réseau",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "msg_id": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-fA-F-]{36}$"
+    },
+    "ts": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$"
+    },
+    "test_id": {
+      "type": "string",
+      "maxLength": 64
+    },
+    "request_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 64
+    },
+    "target": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{2,64}$"
+    },
+    "delivered": {
+      "type": "boolean"
+    },
+    "latency_ms": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "path": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[0-9a-f]{2,64}$"
+      },
+      "maxItems": 64
+    },
+    "error": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 500
+    }
+  },
+  "required": [
+    "schema_version",
+    "msg_id",
+    "ts",
+    "test_id",
+    "target",
+    "delivered"
+  ],
+  "additionalProperties": false
+}

@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "msg_id": "1522c866-6469-4bc3-8e23-b1aa3530eafc",
+  "ts": "2026-10-28T10:15:00Z",
+  "agent_version": "0.3.1",
+  "uptime_s": 86400,
+  "radio_connected": true,
+  "buffer_pending": 0,
+  "cpu_temp_c": 48,
+  "disk_free_mb": 12000
+}

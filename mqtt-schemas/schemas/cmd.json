@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://supervimesh.fr/schemas/cmd.json",
+  "title": "cmd",
+  "description": "Commande descendante (liste blanche)",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "request_id": {
+      "type": "string",
+      "maxLength": 64
+    },
+    "cmd": {
+      "enum": [
+        "run_test",
+        "refresh_status",
+        "update_config",
+        "ping"
+      ]
+    },
+    "args": {
+      "type": "object"
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$"
+    }
+  },
+  "required": [
+    "schema_version",
+    "request_id",
+    "cmd",
+    "expires_at"
+  ]
+}

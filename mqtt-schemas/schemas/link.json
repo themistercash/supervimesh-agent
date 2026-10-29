@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://supervimesh.fr/schemas/link.json",
+  "title": "link",
+  "description": "Qualité d'une liaison radio, agrégée par minute",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "msg_id": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-fA-F-]{36}$"
+    },
+    "ts": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$"
+    },
+    "from": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{2,64}$"
+    },
+    "to": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^[0-9a-f]{2,64}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "snr": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "rssi": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "count": {
+      "type": "integer",
+      "minimum": 1
+    }
+  },
+  "required": [
+    "schema_version",
+    "msg_id",
+    "ts",
+    "from",
+    "count"
+  ],
+  "additionalProperties": false
+}

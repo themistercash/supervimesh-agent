@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://supervimesh.fr/schemas/node_status.json",
+  "title": "node_status",
+  "description": "Statut d'un relais administré",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "msg_id": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-fA-F-]{36}$"
+    },
+    "ts": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$"
+    },
+    "public_key": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{2,64}$"
+    },
+    "battery_mv": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "uptime_s": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "noise_floor_dbm": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "airtime_tx_s": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "packets_rx": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "packets_tx": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "extra": {
+      "type": "object",
+      "additionalProperties": {
+        "type": [
+          "number",
+          "string",
+          "boolean",
+          "null"
+        ]
+      }
+    }
+  },
+  "required": [
+    "schema_version",
+    "msg_id",
+    "ts",
+    "public_key"
+  ],
+  "additionalProperties": false
+}

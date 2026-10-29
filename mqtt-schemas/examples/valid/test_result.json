@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "msg_id": "1522c866-6469-4bc3-8e23-b1aa3530eafc",
+  "ts": "2026-10-28T10:15:00Z",
+  "test_id": "t-42",
+  "request_id": "r-981",
+  "target": "d4e5f6a1b2c3",
+  "delivered": true,
+  "latency_ms": 2300,
+  "path": [
+    "a1b2c3d4e5f6",
+    "c3d4",
+    "d4e5f6a1b2c3"
+  ],
+  "error": null
+}

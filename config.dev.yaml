@@ -1,0 +1,17 @@
+# Configuration de développement : simulateur radio, tampon local (aucun matériel requis)
+identity:            # identifiants techniques fournis par la plateforme (jamais de nom de personne)
+  org: org-demo
+  site: site-demo
+  gateway: gw-1
+radio:
+  transport: simulator  # serial | tcp | simulator
+  port: /dev/ttyUSB0
+polling:             # budget radio : 1 demande de statut par relais toutes les 30 à 60 min
+  status_min_interval_min: 30
+  status_max_interval_min: 60
+managed_repeaters:   # les mots de passe restent sur la passerelle, jamais envoyés au cloud
+  - public_key: a1b2c3d4e5f60000000000000000000000000000000000000000000000000000
+    password: "à-remplacer"
+    name: Relais Église
+buffer_path: ./buffer.db
+log_level: INFO

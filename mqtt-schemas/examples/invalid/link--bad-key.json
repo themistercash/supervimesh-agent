@@ -1,0 +1,13 @@
+{
+  "type": "link",
+  "message": {
+    "schema_version": 1,
+    "msg_id": "1522c866-6469-4bc3-8e23-b1aa3530eafc",
+    "ts": "2026-10-28T10:15:00Z",
+    "from": "ZZZ",
+    "to": "d4e5f6a1b2c3",
+    "snr": 6.0,
+    "rssi": -101,
+    "count": 4
+  }
+}
