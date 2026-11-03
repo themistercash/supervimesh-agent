@@ -31,6 +31,19 @@ class ManagedRepeater(BaseModel):
     name: str | None = None
 
 
+class Sensor(BaseModel):
+    """Capteur MeshCore dont la passerelle relève la télémétrie (CayenneLPP).
+
+    Le mot de passe (invité ou administrateur, seulement si le capteur l'exige) reste dans ce fichier local,
+    jamais envoyé au cloud.
+    """
+
+    public_key: str = Field(pattern=r"^[0-9a-fA-F]{12,64}$")
+    name: str | None = None
+    password: str | None = Field(default=None, repr=False)
+    interval_min: int = Field(default=15, ge=5)  # budget radio : au plus un relevé toutes les 5 min
+
+
 class PollingConfig(BaseModel):
     """Budget radio : une demande de statut par relais toutes les min..max minutes (gigue aléatoire)."""
 
@@ -64,12 +77,40 @@ class UplinkConfig(BaseModel):
     heartbeat_interval_s: int = Field(default=60, ge=10)
 
 
+class LocalApiConfig(BaseModel):
+    """Mini tableau de bord en lecture seule sur le réseau local (aucun port à ouvrir vers internet)."""
+
+    enabled: bool = True
+    host: str = "0.0.0.0"  # 127.0.0.1 = visible seulement depuis la passerelle elle-même
+    port: int = Field(default=8080, ge=1, le=65535)
+
+
+class EventLogConfig(BaseModel):
+    """Main courante : canaux d'exploitation relayés vers la plateforme. Liste vide = rien n'est relayé.
+
+    Une entrée est un nom de canal (casse et espaces de bord ignorés) ou un index « #0 », « #1 »…
+    Jamais de messages privés : seuls les messages de canal sont concernés.
+    """
+
+    channels: list[str] = []
+    sos_keywords: list[str] = ["SOS"]
+
+    def allows(self, channel_idx: int, channel_name: str | None) -> bool:
+        wanted = {c.strip().casefold() for c in self.channels if c.strip()}
+        if f"#{channel_idx}" in wanted:
+            return True
+        return channel_name is not None and channel_name.strip().casefold() in wanted
+
+
 class AgentConfig(BaseModel):
     identity: IdentityConfig
     uplink: UplinkConfig | None = None  # None = mode local seul (aucun envoi au cloud)
     radio: RadioConfig = RadioConfig()
     polling: PollingConfig = PollingConfig()
     managed_repeaters: list[ManagedRepeater] = []
+    sensors: list[Sensor] = []
+    local_api: LocalApiConfig = LocalApiConfig()
+    event_log: EventLogConfig = EventLogConfig()
     buffer_path: Path = Path("/var/lib/supervimesh/buffer.db")
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
 

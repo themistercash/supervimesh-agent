@@ -1,0 +1,9 @@
+[Unit]
+Description=Mise à jour de l'agent SuperviMesh
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# Récupère la dernière version publiée puis réinstalle (configuration conservée).
+ExecStart=/bin/bash -c 'curl -fsSL https://raw.githubusercontent.com/themistercash/supervimesh-agent/main/deploy/install.sh | bash'

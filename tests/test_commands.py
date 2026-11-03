@@ -81,3 +81,29 @@ async def test_simulator_run_test_conforms_to_contract():
 
     schema = schemas_root() / "schemas" / "test_result.json"
     jsonschema.validate(msg, json.loads(schema.read_text()))
+
+
+async def test_send_channel_msg_only_on_authorized_channel(cfg):
+    from supervimesh_agent.simulator import SimulatedRadio
+
+    radio = SimulatedRadio()
+    await radio.connect()
+    cfg.event_log.channels = ["Organisation"]
+    h = CommandHandler(cfg, _noop, send_channel=radio.send_channel_message)
+    send = lambda channel, text: h.handle(cmd("send_channel_msg", {"channel": channel, "text": text}), NOW)
+    assert await send("organisation", "Départ dans 5 min") == ("r-1", True, None)
+    assert await send("Public", "Bonjour") == ("r-1", False, "canal non autorisé dans la configuration (event_log)")
+    assert (await send("Organisation", "ligne 1\nligne 2"))[1] is False
+    assert (await send("Organisation", "x" * 121))[1] is False
+    assert radio.sent_messages == [("organisation", "Départ dans 5 min")]
+
+
+async def test_send_channel_msg_refused_when_channel_missing_on_radio(cfg):
+    from supervimesh_agent.simulator import SimulatedRadio
+
+    radio = SimulatedRadio()
+    await radio.connect()
+    cfg.event_log.channels = ["Secours"]
+    h = CommandHandler(cfg, _noop, send_channel=radio.send_channel_message)
+    res = await h.handle(cmd("send_channel_msg", {"channel": "Secours", "text": "test"}), NOW)
+    assert res == ("r-1", False, "canal absent du companion")

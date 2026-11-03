@@ -32,6 +32,21 @@
 
 `link.from` = dernier relais du chemin (préfixe de hash), `link.to` = clé du companion de la passerelle.
 
+### `event_log` (main courante)
+- **Refus par défaut** : seuls les canaux nommés dans la configuration locale (`event_log.channels`, par nom
+  sans tenir compte de la casse ni des espaces de bord, ou par index `#0`, `#1`…) sont publiés. Jamais de
+  message privé (l'agent n'écoute pas `CONTACT_MSG_RECV`).
+- `channel` = nom du canal lu sur le companion, ou `#index` s'il est inconnu (64 caractères maximum).
+- Un message de canal MeshCore **ne porte pas d'expéditeur** (ni clé, ni nom) : `from_key` vaut toujours
+  `null` ; `from_name` est tiré du préfixe « Nom: » du texte (avant le premier `": "`, 64 caractères maximum),
+  sinon `null`. Ce nom est déclaratif, non authentifié. `content` = le reste du texte, tronqué à 500 caractères.
+- `kind` = `sos` si `content` commence par un mot-clé SOS (mot entier, casse ignorée, défaut `SOS`) ou contient
+  `#sos` ; sinon `position` si `content` contient des coordonnées décimales ; sinon `message`.
+- Coordonnées : `lat, lng` ou `lat lng` avec au moins 3 décimales de chaque côté, ou au moins 1 décimale après
+  un préfixe `POS`, `GPS` ou `position` ; lat ∈ [-90, 90], lng ∈ [-180, 180]. Un `sos` garde aussi `lat`/`lng`.
+- `ts` = heure d'émission déclarée par l'expéditeur si elle est à moins de 10 min (avant ou après) de la
+  réception, sinon heure de réception par la passerelle.
+
 ## Sujet descendant (lu par la passerelle)
 
 `mv/{org}/{site}/{gw}/cmd`, QoS 1, schéma `cmd`.

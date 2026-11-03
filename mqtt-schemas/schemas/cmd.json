@@ -18,7 +18,8 @@
         "run_test",
         "refresh_status",
         "update_config",
-        "ping"
+        "ping",
+        "send_channel_msg"
       ]
     },
     "args": {

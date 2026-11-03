@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "msg_id": "7d1c2e3f-4a5b-4c6d-8e9f-0a1b2c3d4e5f",
+  "ts": "2026-10-28T10:15:00Z",
+  "public_key": "c4d5e6f7a8b9",
+  "readings": [
+    {
+      "channel": 1,
+      "type": "temperature",
+      "value": 3.5
+    },
+    {
+      "channel": 2,
+      "type": "humidity",
+      "value": 81
+    },
+    {
+      "channel": 3,
+      "type": "gps",
+      "value": {
+        "latitude": 45.12,
+        "longitude": 6.21,
+        "altitude": 980
+      }
+    }
+  ]
+}

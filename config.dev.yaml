@@ -13,5 +13,11 @@ managed_repeaters:   # les mots de passe restent sur la passerelle, jamais envoy
   - public_key: a1b2c3d4e5f60000000000000000000000000000000000000000000000000000
     password: "à-remplacer"
     name: Relais Église
+sensors:             # simulateur : capteur « Capteur Col » (tension, température, humidité)
+  - public_key: d4e5f6a1b2c3
+    name: Capteur Col
+    interval_min: 5
+event_log:           # simulateur : seul le canal « Organisation » (#1) est relayé, « Public » (#0) est filtré
+  channels: ["Organisation"]
 buffer_path: ./buffer.db
 log_level: INFO

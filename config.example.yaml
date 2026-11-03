@@ -18,5 +18,21 @@ managed_repeaters:   # les mots de passe restent sur la passerelle, jamais envoy
   - public_key: a1b2c3d4e5f6
     password: "à-remplacer"
     name: Relais Église
+sensors:             # capteurs MeshCore relevés (télémétrie : température, humidité, tension…) ; liste vide = aucun
+  - public_key: d4e5f6a1b2c3
+    name: Capteur Col
+    interval_min: 15        # budget radio : un relevé toutes les 15 min (minimum 5), avec un léger délai aléatoire
+    # password: "à-remplacer"  # seulement si le capteur réserve sa télémétrie aux invités/administrateurs ; reste local
+local_api:           # tableau de bord local : http://<adresse-de-la-passerelle>:8080 (lecture seule)
+  enabled: true
+  host: 0.0.0.0      # 127.0.0.1 pour le réserver à la passerelle elle-même
+  port: 8080
+event_log:           # main courante : messages des canaux d'exploitation relayés vers la plateforme
+  # Refus par défaut : liste vide = aucun message relayé. N'ajoutez que les canaux d'exploitation
+  # (organisation, sécurité) dont les membres ont été informés et ont donné leur accord.
+  # Jamais de canal public ni de messages privés (ces derniers ne sont jamais relayés, quoi qu'il arrive).
+  # Nom du canal (casse ignorée) ou index : "#1".
+  channels: []       # exemple : ["Organisation", "#2"]
+  sos_keywords: ["SOS"]   # un message qui commence par l'un de ces mots (ou contient #sos) devient une alerte
 buffer_path: /var/lib/supervimesh/buffer.db
 log_level: INFO

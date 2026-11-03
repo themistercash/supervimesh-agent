@@ -1,0 +1,10 @@
+[Unit]
+Description=Mise à jour hebdomadaire de l'agent SuperviMesh (activée avec install.sh --auto-update)
+
+[Timer]
+OnCalendar=Mon *-*-* 04:00
+RandomizedDelaySec=1h
+Persistent=true
+
+[Install]
+WantedBy=timers.target

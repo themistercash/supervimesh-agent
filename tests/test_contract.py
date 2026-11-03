@@ -10,8 +10,9 @@ import pytest
 from pydantic import ValidationError
 
 from supervimesh_agent.buffer import Outbox
-from supervimesh_agent.collectors import PassiveCollector, StatusPoller
-from supervimesh_agent.radio import AdvertSeen, PacketHeard
+from supervimesh_agent.collectors import PassiveCollector, StatusPoller, TelemetryPoller
+from supervimesh_agent.config import EventLogConfig, Sensor
+from supervimesh_agent.radio import AdvertSeen, ChannelMessage, PacketHeard
 from supervimesh_agent.schemas import MODELS
 from supervimesh_agent.simulator import SimulatedRadio
 
@@ -60,14 +61,27 @@ async def test_agent_output_conforms_to_json_schemas(cfg):
     box = Outbox(":memory:")
     radio = SimulatedRadio(rng=random.Random(3))
     await radio.connect()
+    cfg = cfg.model_copy(update={
+        "event_log": EventLogConfig(channels=["Organisation"]),
+        "sensors": [Sensor(public_key="d4e5f6a1b2c3")],
+    })
     col = PassiveCollector(cfg, box, lambda: radio.self_key)
     col.handle(PacketHeard(snr=6.0, rssi=-100, last_hop="a1"))
+    now = datetime.now(timezone.utc)
+    for text in ("Ravito km 18: Besoin d'eau", "Serre-file: POS 45.2,5.7", "PC Course: SOS coureur 45.2051, 5.7398"):
+        col.handle(ChannelMessage(1, "Organisation", text, now, now, 5.0))
+    col.handle(ChannelMessage(0, "Public", "Rando38: Salut", now, now, 5.0))  # canal non autorisé
     col.handle(AdvertSeen("a1b2c3d4e5f6" + "0" * 52, "Relais", "repeater", None, None, hops=None))
     col.flush_links(datetime.now(timezone.utc))
     await StatusPoller(cfg, box, radio).poll_once(cfg.managed_repeaters[0])
-    by_suffix = {"node/advert": "node_advert", "link": "link", "node/status": "node_status"}
+    assert await TelemetryPoller(cfg, box, radio).poll_once(cfg.sensors[0])
+    by_suffix = {
+        "node/advert": "node_advert", "link": "link", "node/status": "node_status", "event_log": "event_log",
+        "node/telemetry": "node_telemetry",
+    }
     msgs = box.peek()
-    assert len(msgs) == 3
+    assert len(msgs) == 7
+    assert sorted(m.payload["kind"] for m in msgs if m.topic.endswith("/event_log")) == ["message", "position", "sos"]
     for m in msgs:
         suffix = m.topic.split("/", 4)[4]
         jsonschema.validate(m.payload, json_schema(by_suffix[suffix]))

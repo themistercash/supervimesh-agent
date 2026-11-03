@@ -6,7 +6,9 @@ import json
 import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
+
+Listener = Callable[[str, dict[str, Any]], None]
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS outbox (
@@ -32,9 +34,14 @@ class Outbox:
     def __init__(self, path: Path | str) -> None:
         if str(path) != ":memory:":
             Path(path).parent.mkdir(parents=True, exist_ok=True)
-        self._db = sqlite3.connect(str(path))
+        self._db = sqlite3.connect(str(path), check_same_thread=False)  # accès séquentiels depuis la boucle asyncio
         self._db.execute("PRAGMA journal_mode=WAL")
         self._db.executescript(_SCHEMA)
+        self._listeners: list[Listener] = []
+
+    def add_listener(self, listener: Listener) -> None:
+        """Appelé pour chaque nouveau message (ex. : état du tableau de bord local)."""
+        self._listeners.append(listener)
 
     def enqueue(self, topic: str, payload: dict[str, Any], qos: int = 1) -> bool:
         """Ajoute un message ; renvoie False si ce msg_id est déjà en attente (doublon)."""
@@ -43,7 +50,11 @@ class Outbox:
             (payload["msg_id"], topic, qos, json.dumps(payload, ensure_ascii=False)),
         )
         self._db.commit()
-        return cur.rowcount == 1
+        if cur.rowcount != 1:
+            return False
+        for listener in self._listeners:
+            listener(topic, payload)
+        return True
 
     def peek(self, limit: int = 50) -> list[PendingMessage]:
         rows = self._db.execute(

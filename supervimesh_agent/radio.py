@@ -8,17 +8,23 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import math
+import re
 import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Protocol
 
-from .config import ManagedRepeater, RadioConfig
+from .config import ManagedRepeater, RadioConfig, Sensor
 
 log = logging.getLogger(__name__)
 
 # Types d'annonce MeshCore (champ `type` des contacts).
 ROLE_BY_TYPE = {1: "companion", 2: "repeater", 3: "room_server", 4: "sensor"}
+MAX_CHANNELS = 16  # emplacements de canal parcourus pour trouver un canal par son nom
+MAX_READINGS = 32  # mesures publiées au plus par relevé de capteur
+MAX_VALUE_KEY = 16  # longueur maximale d'une clé de mesure composée (« latitude », « acc_x »…)
+_READING_TYPE = re.compile(r"^[a-z][a-z0-9 _-]{0,31}$")
 
 
 def utcnow() -> datetime:
@@ -70,7 +76,20 @@ class TestOutcome:
     ts: datetime = field(default_factory=utcnow)
 
 
-RadioEvent = AdvertSeen | PacketHeard
+@dataclass(frozen=True)
+class ChannelMessage:
+    """Message reçu sur un canal MeshCore. Le protocole ne transmet pas l'expéditeur (ni clé ni nom) :
+    seul le texte, par convention « Nom: message », permet de l'afficher."""
+
+    channel_idx: int
+    channel_name: str | None
+    text: str
+    sender_ts: datetime | None  # horloge de l'émetteur, pas toujours à l'heure
+    received_at: datetime = field(default_factory=utcnow)
+    snr: float | None = None
+
+
+RadioEvent = AdvertSeen | PacketHeard | ChannelMessage
 
 
 class Radio(Protocol):
@@ -82,6 +101,8 @@ class Radio(Protocol):
     async def events(self) -> RadioEvent: ...
     async def request_status(self, repeater: ManagedRepeater, timeout_s: float) -> StatusReport | None: ...
     async def run_test(self, target_key: str, timeout_s: float) -> TestOutcome: ...
+    async def send_channel_message(self, channel: str, text: str) -> str | None: ...
+    async def request_telemetry(self, sensor: Sensor, timeout_s: float) -> list[dict[str, Any]] | None: ...
 
 
 def _num(value: Any) -> Any:
@@ -117,6 +138,61 @@ def status_payload_to_report(public_key: str, p: dict[str, Any]) -> StatusReport
     )
 
 
+def _finite(value: Any) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
+
+
+def normalize_readings(raw: Any) -> list[dict[str, Any]]:
+    """Liste LPP décodée par meshcore_py → mesures conformes au contrat node_telemetry.
+
+    Une mesure n'est gardée que si sa valeur est un nombre fini ou un objet de nombres finis ; le type est mis
+    en minuscules. Le reste (texte, NaN, booléen, liste, canal hors 0..255) est écarté : on n'invente rien.
+    """
+    if not isinstance(raw, list):
+        return []
+    readings: list[dict[str, Any]] = []
+    for item in raw:
+        if len(readings) >= MAX_READINGS:
+            break
+        if not isinstance(item, dict):
+            continue
+        channel, kind, value = item.get("channel"), item.get("type"), item.get("value")
+        if not isinstance(channel, int) or isinstance(channel, bool) or not 0 <= channel <= 255:
+            continue
+        if not isinstance(kind, str) or not _READING_TYPE.match(kind := kind.strip().lower()):
+            continue
+        if isinstance(value, dict):
+            if not value or not all(
+                isinstance(k, str) and 0 < len(k) <= MAX_VALUE_KEY and _finite(v) for k, v in value.items()
+            ):
+                continue
+            value = dict(value)
+        elif not _finite(value):
+            continue
+        readings.append({"channel": channel, "type": kind, "value": value})
+    return readings
+
+
+def channel_payload_to_message(
+    channel_idx: int, channel_name: str | None, p: dict[str, Any], received_at: datetime | None = None
+) -> ChannelMessage | None:
+    """Événement CHANNEL_MSG_RECV → ChannelMessage (None si le texte manque)."""
+    text = p.get("text")
+    if not isinstance(text, str):
+        return None
+    sender = p.get("sender_timestamp")
+    sender_ts = None
+    if isinstance(sender, int) and sender > 0:
+        try:
+            sender_ts = datetime.fromtimestamp(sender, timezone.utc)
+        except (OverflowError, OSError, ValueError):
+            sender_ts = None
+    return ChannelMessage(
+        channel_idx=channel_idx, channel_name=channel_name, text=text, sender_ts=sender_ts,
+        received_at=received_at or utcnow(), snr=_num(p.get("SNR")),
+    )
+
+
 class MeshCoreRadio:
     """Boîtier companion réel via meshcore_py (USB série ou TCP)."""
 
@@ -125,6 +201,7 @@ class MeshCoreRadio:
         self._mc: Any = None
         self._queue: asyncio.Queue[RadioEvent] = asyncio.Queue(maxsize=1000)
         self.self_key: str | None = None
+        self._channel_names: dict[int, str] = {}  # index → nom ; la clé du canal n'est jamais conservée
 
     async def connect(self) -> None:
         from meshcore import EventType, MeshCore
@@ -140,6 +217,11 @@ class MeshCoreRadio:
         await mc.ensure_contacts()
         mc.subscribe(EventType.ADVERTISEMENT, self._on_advert)
         mc.subscribe(EventType.RX_LOG_DATA, self._on_rx)
+        # Messages de canal seulement (le filtrage par canal autorisé se fait dans collectors) ;
+        # CONTACT_MSG_RECV (messages privés) n'est volontairement jamais écouté.
+        self._channel_names.clear()  # les canaux ont pu être reconfigurés entre deux connexions
+        mc.subscribe(EventType.CHANNEL_MSG_RECV, self._on_channel_msg)
+        await mc.start_auto_message_fetching()
         log.info("radio connectée (%d contacts connus)", len(mc.contacts))
 
     async def close(self) -> None:
@@ -177,6 +259,35 @@ class MeshCoreRadio:
             )
         )
 
+    async def _channel_name(self, idx: int) -> str | None:
+        """Nom du canal via get_channel, mis en cache. Une erreur ne bloque pas l'écoute (nom = None)."""
+        if idx in self._channel_names:
+            return self._channel_names[idx]
+        from meshcore import EventType
+
+        try:
+            event = await self._mc.commands.get_channel(idx)
+        except Exception as exc:  # la radio ne doit jamais faire tomber l'écoute
+            log.warning("nom du canal #%d indisponible (%s)", idx, type(exc).__name__)
+            return None
+        if event is None or event.type != EventType.CHANNEL_INFO:
+            return None
+        name = event.payload.get("channel_name")  # seul le nom est lu : channel_secret est ignoré
+        if not isinstance(name, str) or not name.strip():
+            return None
+        self._channel_names[idx] = name.strip()
+        return self._channel_names[idx]
+
+    async def _on_channel_msg(self, event: Any) -> None:
+        p = event.payload
+        idx = p.get("channel_idx")
+        if not isinstance(idx, int):
+            return
+        received_at = utcnow()
+        msg = channel_payload_to_message(idx, await self._channel_name(idx), p, received_at)
+        if msg is not None:
+            self._put(msg)
+
     async def request_status(self, repeater: ManagedRepeater, timeout_s: float) -> StatusReport | None:
         contact = self._mc.get_contact_by_key_prefix(repeater.public_key)
         if contact is None:
@@ -205,6 +316,40 @@ class MeshCoreRadio:
         if not str(contact["public_key"]).startswith(str(p.get("pubkey_pre", ""))):
             return TestOutcome(False, None, [], "réponse reçue d'un autre nœud")
         return TestOutcome(True, latency, split_path(p.get("out_path", ""), p.get("out_path_hash_len", 1)), None)
+
+
+    async def send_channel_message(self, channel: str, text: str) -> str | None:
+        """Message sur un canal du companion, trouvé par son nom (casse ignorée). Renvoie l'erreur, None si envoyé."""
+        from meshcore import EventType
+
+        wanted = channel.strip().casefold()
+        for idx in range(MAX_CHANNELS):
+            name = await self._channel_name(idx)
+            if name is None or name.casefold() != wanted:
+                continue
+            event = await self._mc.commands.send_chan_msg(idx, text)
+            if event is None or event.type == EventType.ERROR:
+                return "la radio a refusé le message"
+            return None
+        return "canal absent du companion"
+
+    async def request_telemetry(self, sensor: Sensor, timeout_s: float) -> list[dict[str, Any]] | None:
+        """Télémétrie CayenneLPP d'un capteur (liste déjà décodée par meshcore_py), None sans réponse.
+
+        Connexion préalable seulement si un mot de passe est configuré (capteur qui réserve sa télémétrie
+        aux invités ou administrateurs connectés).
+        """
+        contact = self._mc.get_contact_by_key_prefix(sensor.public_key)
+        if contact is None:
+            log.warning("capteur %s inconnu du companion", sensor.public_key[:12])
+            return None
+        if sensor.password:
+            login = await self._mc.commands.send_login_sync(contact, sensor.password, timeout=timeout_s)
+            if login is None:  # refus ou délai dépassé
+                log.warning("connexion refusée par le capteur %s", sensor.public_key[:12])
+                return None
+        lpp = await self._mc.commands.req_telemetry_sync(contact, timeout=timeout_s)
+        return lpp if isinstance(lpp, list) else None
 
 
 def split_path(hex_path: str, hash_len: int) -> list[str]:

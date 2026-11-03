@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from typing import Annotated, Any, Literal, Union
 
-from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictFloat, StrictInt
 
 NodeKey = Annotated[str, Field(pattern=r"^[0-9a-f]{2,64}$")]
 UtcTs = Annotated[str, Field(pattern=r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$")]
@@ -15,8 +15,10 @@ Lat = Annotated[float | None, Field(ge=-90, le=90)]
 Lng = Annotated[float | None, Field(ge=-180, le=180)]
 OptNum = float | None
 OptInt = StrictInt | None
+# Mesure de capteur : nombre fini (jamais un booléen ni NaN, que JSON ne sait pas représenter).
+FiniteNum = Annotated[Union[StrictInt, StrictFloat], Field(allow_inf_nan=False)]
 
-CMD_WHITELIST = ("run_test", "refresh_status", "update_config", "ping")
+CMD_WHITELIST = ("run_test", "refresh_status", "update_config", "ping", "send_channel_msg")
 
 
 class _Strict(BaseModel):
@@ -60,6 +62,17 @@ class NodeStatus(_Envelope):
     extra: dict[str, Union[float, str, bool, None]] | None = None
 
 
+class TelemetryReading(_Strict):
+    channel: Annotated[StrictInt, Field(ge=0, le=255)]
+    type: Annotated[str, Field(pattern=r"^[a-z][a-z0-9 _-]{0,31}$")]
+    value: Union[FiniteNum, dict[Annotated[str, Field(max_length=16)], FiniteNum]]
+
+
+class NodeTelemetry(_Envelope):
+    public_key: NodeKey
+    readings: Annotated[list[TelemetryReading], Field(min_length=1, max_length=32)]
+
+
 class Link(_Envelope):
     from_: NodeKey = Field(alias="from")
     to: NodeKey | None = None
@@ -97,7 +110,7 @@ class CmdResult(_Envelope):
 class Cmd(_Strict):
     schema_version: Literal[1]
     request_id: Annotated[str, Field(max_length=64)]
-    cmd: Literal["run_test", "refresh_status", "update_config", "ping"]
+    cmd: Literal["run_test", "refresh_status", "update_config", "ping", "send_channel_msg"]
     args: dict[str, Any] | None = None
     expires_at: UtcTs
 
@@ -113,6 +126,7 @@ MODELS: dict[str, type[BaseModel]] = {
     "heartbeat": Heartbeat,
     "node_advert": NodeAdvert,
     "node_status": NodeStatus,
+    "node_telemetry": NodeTelemetry,
     "link": Link,
     "test_result": TestResult,
     "event_log": EventLog,
@@ -127,6 +141,7 @@ UPLINK_TOPICS: dict[str, str] = {
     "status": "gateway_status",
     "node/advert": "node_advert",
     "node/status": "node_status",
+    "node/telemetry": "node_telemetry",
     "link": "link",
     "test_result": "test_result",
     "event_log": "event_log",
